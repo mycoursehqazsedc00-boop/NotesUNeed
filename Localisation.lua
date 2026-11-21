@@ -94,7 +94,8 @@ NUN_HRACES = {
 	"Orc",
 	"Tauren",
 	"Troll",
-	"Undead"
+	"Undead",
+	"Goblin"
 };
 
 NUN_ARACES = {};
@@ -103,7 +104,8 @@ NUN_ARACES = {
 	"Dwarf",
 	"Gnome",
 	"Human",
-	"Night Elf"
+	"Night Elf",
+	"High Elf"
 };
 
 NUN_ALLCLASSES = {};

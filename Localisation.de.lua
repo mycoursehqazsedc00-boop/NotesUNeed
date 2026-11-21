@@ -99,7 +99,8 @@ if ( GetLocale() == "deDE" ) then
 		"Orc",
 		"Taure",
 		"Troll",
-		"Untoter"
+		"Untoter",
+		"Goblin"
 	};
 
 	NUN_ARACES = {};		-- Should fix a Game-Hanging Issue that occurs on some German Client Installations
@@ -108,7 +109,8 @@ if ( GetLocale() == "deDE" ) then
 		"Gnom",
 		"Mensch",
 		"Nachtelf",
-		"Zwerg"
+		"Zwerg",
+		"Hochelf"
 	};
 
 	NUN_ALLCLASSES = {};		-- Should fix a Game-Hanging Issue that occurs on some German Client Installations

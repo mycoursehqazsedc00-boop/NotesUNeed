@@ -2559,8 +2559,10 @@ function NuN_Target()
 	local lgRankIndex;
 	local theUnitID = nil;
 
-	if ( ( UnitInParty("target") ) or ( UnitInRaid("target") ) ) then
+	if ( UnitName("target") == c_name ) then
 		theUnitID = "target";
+	elseif ( UnitName("mouseover") == c_name ) then
+		theUnitID = "mouseover";
 	end
 
 	if ( theUnitID == nil ) then
@@ -2585,6 +2587,16 @@ function NuN_Target()
 		unitTest = false;
 	else
 		if ( theUnitID ~= nil ) then
+			local lFaction = UnitFactionGroup(theUnitID);
+			if ( ( lFaction == "Horde" ) or ( lFaction == "Alliance" ) ) and ( lFaction ~= c_faction ) then
+				c_faction = lFaction;
+				if ( c_faction == "Horde" ) then
+					NuN_HordeSetup();
+				else
+					NuN_AllianceSetup();
+				end
+			end
+
 			lRace = UnitRace(theUnitID);
 			if ( lRace ~= nil ) then
 				c_race = lRace;
@@ -2603,14 +2615,18 @@ function NuN_Target()
 
 			lSex = UnitSex(theUnitID);
 			if ( lSex ~= nil ) then
-				if ( lSex == 0 ) then
+				if ( ( lSex == 2 ) or ( lSex == 0 ) ) then
 					lsex = NUN_MALE;
-				else
+				elseif ( lSex == 3 ) then
 					lsex = NUN_FEMALE;
+				else
+					lsex = nil;
 				end
-				ddSex = NuNGet_TableID(Sexes, lsex);
-				UIDropDownMenu_SetSelectedID(NuNSexDropDown, ddSex);
-				UIDropDownMenu_SetText(lsex, NuNSexDropDown);
+				if ( lsex ) then
+					ddSex = NuNGet_TableID(Sexes, lsex);
+					UIDropDownMenu_SetSelectedID(NuNSexDropDown, ddSex);
+					UIDropDownMenu_SetText(lsex, NuNSexDropDown);
+				end
 			end
 
 			lPvPRankID = UnitPVPRank(theUnitID);
@@ -3523,8 +3539,10 @@ function NuN_AutoNote()
 				NuNData[pKey][pName].cls = ddClass;
 			end
 			lSex = UnitSex("player");
-			if ( lSex ~= nil ) then
-				NuNData[pKey][pName].sex = lSex + 1;
+			if ( ( lSex == 2 ) or ( lSex == 0 ) ) then
+				NuNData[pKey][pName].sex = 1;
+			elseif ( lSex == 3 ) then
+				NuNData[pKey][pName].sex = 2;
 			end
 			lPvPRankID = UnitPVPRank("player");
 			if ( lPvPRankID ~= nil ) and ( lPvPRankID > 0 ) then
@@ -3893,18 +3911,22 @@ end
 
 
 function NuN_NewContact(unitType)
-	local Friendly;
-
+	local targetFaction;
 	if ( ( unitType == "target" ) and ( c_name ~= pName ) ) then
-		if ( UnitIsFriend("player", "target") ) then
-			Friendly = true;
-		else
-			Friendly = false;
+		targetFaction = UnitFactionGroup("target");
+		if ( ( targetFaction ~= "Horde" ) and ( targetFaction ~= "Alliance" ) ) then
+			if ( UnitIsFriend("player", "target") ) then
+				targetFaction = pFaction;
+			elseif ( horde ) then
+				targetFaction = "Alliance";
+			else
+				targetFaction = "Horde";
+			end
 		end
 	else
-		Friendly = true;
+		targetFaction = pFaction;
 	end
-	if ( ((horde) and (Friendly))  or  ((not horde) and (not Friendly)) ) then
+	if ( targetFaction == "Horde" ) then
 		c_faction = "Horde";
 		NuN_HordeSetup();
 	else
@@ -5279,6 +5301,11 @@ function NuN_GameTooltip_OnShow()
 	end
 
 	gtName = GameTooltipTextLeft1:GetText();
+	if ( not gtName ) then
+		NuN_Tooltip:ClearLines();
+		NuN_Tooltip:Hide();
+		return;
+	end
 	if ( not UnitExists("mouseover") ) then
 		sNLen = string.len(gtName);
 		for i=sNLen, 1, -1 do
@@ -5578,7 +5605,7 @@ function NuN_TTCheckBox_OnClick(frameType)
 		if ( NuN_CTTCheckBox:GetChecked() ) then
 			ttName = c_name;
 			NuN_ClearPinnedTT();
-			NuN_PinnedTooltip:SetOwner(this, ANCHOR_BOTTOMRIGHT);
+			NuN_PinnedTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT");
 			NuN_PinUpHeader = true;
 			NuN_PinnedTooltip.type = frameType;
 			NuN_BuildTT(NuN_PinnedTooltip);
@@ -5591,7 +5618,7 @@ function NuN_TTCheckBox_OnClick(frameType)
 		if ( NuN_GTTCheckBox:GetChecked() ) then
 			ttName = c_note;
 			NuN_ClearPinnedTT();
-			NuN_PinnedTooltip:SetOwner(this, ANCHOR_BOTTOMRIGHT);
+			NuN_PinnedTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT");
 			NuN_PinUpHeader = true;
 			NuN_PinnedTooltip.type = frameType;
 			NuN_BuildTT(NuN_PinnedTooltip);
@@ -5869,43 +5896,53 @@ function NuN_TransmitContact(dfltLang, user)
 		parsedArray[arrayCounter] = NUN_TRANSMISSION_PREFIX2.."Contact : "..c_name;
 
 		if ( not NuN_ChatCheckBox:GetChecked() ) then
-			singleLine = NuNData[pKey][c_name].faction.."  ";
-			if ( NuNData[pKey][c_name].race ) then
-				if ( horde ) then
-					singleLine = singleLine..HRaces[NuNData[pKey][c_name].race].."  ";
+			local contactData = NuNData[pKey][c_name];
+			local contactHorde = ( contactData.faction == "Horde" );
+			local val;
+			singleLine = ( contactData.faction or "" ).."  ";
+			if ( contactData.race ) then
+				if ( contactHorde ) then
+					val = HRaces[contactData.race];
 				else
-					singleLine = singleLine..ARaces[NuNData[pKey][c_name].race].."  ";
+					val = ARaces[contactData.race];
 				end
+				if ( val ) then singleLine = singleLine..val.."  "; end
 			end
-			if ( NuNData[pKey][c_name].cls ) then
-				if ( horde ) then
-					singleLine = singleLine..HClasses[NuNData[pKey][c_name].cls].."  ";
+			if ( contactData.cls ) then
+				if ( contactHorde ) then
+					val = HClasses[contactData.cls];
 				else
-					singleLine = singleLine..AClasses[NuNData[pKey][c_name].cls].."  ";
+					val = AClasses[contactData.cls];
 				end
+				if ( val ) then singleLine = singleLine..val.."  "; end
 			end
-			if ( NuNData[pKey][c_name].sex ) then
-				singleLine = singleLine..Sexes[NuNData[pKey][c_name].sex].."  ";
+			if ( contactData.sex ) then
+				val = Sexes[contactData.sex];
+				if ( val ) then singleLine = singleLine..val.."  "; end
 			end
-			if ( NuNData[pKey][c_name].prof1 ) then
-				singleLine = singleLine..Professions[NuNData[pKey][c_name].prof1].."  ";
+			if ( contactData.prof1 ) then
+				val = Professions[contactData.prof1];
+				if ( val ) then singleLine = singleLine..val.."  "; end
 			end
-			if ( NuNData[pKey][c_name].prof2 ) then
-				singleLine = singleLine..Professions[NuNData[pKey][c_name].prof2].."  ";
+			if ( contactData.prof2 ) then
+				val = Professions[contactData.prof2];
+				if ( val ) then singleLine = singleLine..val.."  "; end
 			end
-			if ( NuNData[pKey][c_name].crank ) then
-				if ( horde ) then
-					singleLine = singleLine..HRanks[NuNData[pKey][c_name].crank].."  ";
+			if ( contactData.crank ) then
+				if ( contactHorde ) then
+					val = HRanks[contactData.crank];
 				else
-					singleLine = singleLine..ARanks[NuNData[pKey][c_name].crank].."  ";
+					val = ARanks[contactData.crank];
 				end
+				if ( val ) then singleLine = singleLine..val.."  "; end
 			end
-			if ( NuNData[pKey][c_name].hrank ) then
-				if ( horde ) then
-					singleLine = singleLine..HRanks[NuNData[pKey][c_name].hrank].."  ";
+			if ( contactData.hrank ) then
+				if ( contactHorde ) then
+					val = HRanks[contactData.hrank];
 				else
-					singleLine = singleLine..ARanks[NuNData[pKey][c_name].hrank].."  ";
+					val = ARanks[contactData.hrank];
 				end
+				if ( val ) then singleLine = singleLine..val.."  "; end
 			end
 
 			if ( singleLine ~= "" ) then
@@ -6813,7 +6850,7 @@ function NuN_ProcessParty()
 				if ( not NuNData[pKey][lMember] ) then
 					NuNData[pKey][lMember] = {};
 					NuNData[pKey][lMember].type = NUN_PARTY_C;
-					NuNData[pKey][lMember].faction = pFaction;
+					NuNData[pKey][lMember].faction = UnitFactionGroup("party"..i) or pFaction;
 					NuNData[pKey][lMember][txtTxt] = NUN_AUTO_PARTIED..NuN_GetDateStamp();
 					NuNData[pKey][lMember][pName] = {};
 					NuNData[pKey][lMember][pName].partied = 1;
@@ -6884,7 +6921,7 @@ end
 function NuN_bHaveTTCheckBox_OnEnter()
 	if ( NuNSettings[pKey].toolTips ) then
 		NuN_Fade = "False";
-		NuN_Tooltip:SetOwner(this);
+		NuN_Tooltip:SetOwner(this, "ANCHOR_RIGHT");
 		NuN_Tooltip:ClearLines();
 		NuN_Tooltip:AddLine(NUN_TT_BHAVE_TXT1, 1, 0.7, 0);
 		NuN_Tooltip:AddLine(NUN_TT_BHAVE_TXT2, 0, 1, 0);
@@ -7579,12 +7616,14 @@ function NuN_UpdateMapNotesIndex(deletedNote)
 		for nIndex, nValue in NuNData[mrgIndex][MNindex] do
 			if ( nIndex == deletedNote ) then
 				NuNData[mrgIndex][MNindex][nIndex] = nil;
-				NuNData[mrgIndex][MNindex].noteCounter = NuNData[mrgIndex][MNindex].noteCounter - 1;
+				if ( NuNData[mrgIndex][MNindex].noteCounter ) then
+					NuNData[mrgIndex][MNindex].noteCounter = NuNData[mrgIndex][MNindex].noteCounter - 1;
+				end
 				break;
 			end
-			if ( NuNData[mrgIndex][MNindex].noteCounter < 1 ) then
-				NuNData[mrgIndex][MNindex] = nil;
-			end
+		end
+		if ( ( not NuNData[mrgIndex][MNindex].noteCounter ) or ( NuNData[mrgIndex][MNindex].noteCounter < 1 ) ) then
+			NuNData[mrgIndex][MNindex] = nil;
 		end
 	end
 end
@@ -7896,7 +7935,8 @@ function NuN_LangPatch(langDirection)
 		4,
 		1,
 		2,
-		3
+		3,
+		5
 	}
 
 	local toDeutschHC = {

@@ -799,7 +799,7 @@ function NuN_Update_Ignored()
 		-- Check every Saved entry to see if it is ignored, and upated Saved inofrmation on that basis
 
 		for index, value in NuNData[pKey] do
-			if ( ( NuNData[pKey][index].faction) and ( NuNData[pKey][index].faction == pFaction ) and ( index ~= pName ) ) then
+			if ( ( ( NuNData[pKey][index].faction == "Horde" ) or ( NuNData[pKey][index].faction == "Alliance" ) ) and ( index ~= pName ) ) then
 				if ( NuN_Is_Ignored(index) ) then
 					if ( not NuNData[pKey][index].ignoreLst ) then		-- Ignored but no ignore list currently
 						x = 1;
@@ -873,7 +873,7 @@ function NuN_Update_Friends()
 		for index, value in NuNData[pKey] do
 			if  ( index == pName ) then
 				NuNData[pKey][index].type = NUN_SELF_C;
-			elseif ( ( NuNData[pKey][index].faction ) and ( NuNData[pKey][index].faction == pFaction ) ) then
+			elseif ( ( NuNData[pKey][index].faction == "Horde" ) or ( NuNData[pKey][index].faction == "Alliance" ) ) then
 				if ( NuN_Is_Friendly(index) ) then
 					if ( not NuNData[pKey][index].friendLst ) then
 						x = 1;
@@ -2880,7 +2880,7 @@ function NuNOptions_Import()
 	for index, value in NuNData[pKey] do
 		if ( ( NuNData[pKey][index].faction ) and ( index == pName ) ) then
 			NuNData[pKey][index].type = NUN_SELF_C;
-		elseif ( ( NuNData[pKey][index].faction == pFaction ) and ( index ~= pName ) ) then
+		elseif ( ( ( NuNData[pKey][index].faction == "Horde" ) or ( NuNData[pKey][index].faction == "Alliance" ) ) and ( index ~= pName ) ) then
 			if ( NuNData[pKey][index].ignoreLst ) then
 				if ( not NuN_Is_Ignored(index) ) then
 					if ( NuN_NotInfiniteIgored(index) ) then
@@ -4542,11 +4542,10 @@ function NuN_NPCInfo()
 	if ( NPCcls ~= nil ) then
 		NPCInfo = NPCInfo..NUN_CLASS.." : "..NPCcls..",  ";
 	end
-	if ( NPCsex ~= nil ) then
-		local sex = Sexes[NPCsex + 1];
-		if ( sex ) then
-			NPCInfo = NPCInfo..sex..",  ";
-		end
+	if ( ( NPCsex == 2 ) or ( NPCsex == 0 ) ) then
+		NPCInfo = NPCInfo..NUN_MALE..",  ";
+	elseif ( NPCsex == 3 ) then
+		NPCInfo = NPCInfo..NUN_FEMALE..",  ";
 	end
 	if ( NPCtype ~= nil ) then
 		NPCInfo = NPCInfo..NPCtype.."     ";
@@ -4955,10 +4954,10 @@ function NuN_BuildTT(nunTT)
 				lineCount = lineCount + 1;
 			end
 
-			if ( NuNData[pKey][ttName].prof1 ) then
+			if ( NuNData[pKey][ttName].prof1 ) and ( Professions[NuNData[pKey][ttName].prof1] ) then
 				lprof = Professions[NuNData[pKey][ttName].prof1];
 			end
-			if ( NuNData[pKey][ttName].prof2 ) then
+			if ( NuNData[pKey][ttName].prof2 ) and ( Professions[NuNData[pKey][ttName].prof2] ) then
 				if (lprof == "") then
 					lprof = Professions[NuNData[pKey][ttName].prof2];
 				else
